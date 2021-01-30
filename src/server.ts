@@ -11,26 +11,48 @@ type Params<T extends ParamSchema> = T extends StringConstructor
 
 type Methods = Record<string, { params: ParamSchema }>
 
+type Handlers<T extends Methods> = { [K in keyof T]: () => void }
+
 type Message<T extends Methods, M extends keyof T> = {
   jsonrpc: '2.0'
   method: M
   params: Params<T[M]['params']>
 }
 
+type MessageHandler<T extends Methods> = <M extends keyof T>(
+  msg: Message<T, M>
+) => void
+
+type Channel<T extends Methods> = {
+  in: MessageHandler<T>
+  out?: MessageHandler<T>
+}
+
+type MsgHandler<T extends Methods> = <M extends keyof T>(
+  params: Params<T[M]['params']>
+) => void
+
 type Server<T extends Methods> = {
-  call<M extends keyof T>(msg: Message<T, M>): void
+  createChannel(): Channel<T>
+  on<M extends keyof T>(method: M, handler: MsgHandler<T>): void
 }
 
 export const createServer = <T extends Methods>(methods: T): Server<T> => {
-  return { call() {} }
+  const handlers: { [K in keyof T]?: Function } = {}
+
+  return {
+    on(method, handler) {
+      handlers[method] = handler
+    },
+    createChannel: () => ({
+      in(msg) {
+        console.log('in:', msg)
+
+        if (typeof handlers[msg.method] !== 'function')
+          throw Error(`no handler registered for method "${msg.method}"`)
+
+        handlers[msg.method]!(msg.params)
+      },
+    }),
+  }
 }
-
-const server = createServer({
-  add: { params: [Number, Number] },
-  sayHello: { params: String },
-})
-
-server.call({ jsonrpc: '2.0', method: 'sayHello', params: 'John' })
-server.call({ jsonrpc: '2.0', method: 'add', params: [1, 2] })
-
-type Foo = Params<[NumberConstructor, NumberConstructor]>
