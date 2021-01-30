@@ -1,7 +1,7 @@
 {
   "name": "typerpc",
   "version": "0.0.2",
-  "description": "JSON-RPC implementation in TypeScript",
+  "description": "JSON-RPC 2.0 implementation in TypeScript",
   "main": "lib/index.js",
   "types": "lib/index.d.ts",
   "files": [

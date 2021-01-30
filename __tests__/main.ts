@@ -1,27 +1,23 @@
 import { createServer } from '../src/server'
 
+const schema = {
+  greet: {},
+  add: { params: [Number, Number], result: Number },
+  concact: { params: [String, String] },
+} as const
+
+const server = createServer(schema)
+
+server.on('greet', () => {})
+server.on('add', ([a, b]) => a + b)
+
 test('server', async () => {
-  const schema = {
-    greet: {},
-    add: { params: [Number, Number] },
-    concact: { params: [String, String] },
-  } as const
-
-  const server = createServer(schema)
-
-  server.on('greet', () => {
-    console.log('someone said hello')
-  })
-
-  server.on('add', ([a, b]) => {
-    console.log(`calculate ${a}+${b}`)
-  })
-
   const channel = server.createChannel()
-  channel.out = msg => console.log('received:', msg)
 
-  channel.in({ jsonrpc: '2.0', method: 'add', params: [1, 2] })
-  channel.in({ jsonrpc: '2.0', method: 'greet' })
-
-  await new Promise(res => setTimeout(res, 2000))
+  await expect(
+    new Promise(res => {
+      channel.out = res
+      channel.in({ jsonrpc: '2.0', method: 'add', params: [1, 2], id: 1 })
+    })
+  ).resolves.toEqual({ jsonrpc: '2.0', id: 1, result: 3 })
 })
