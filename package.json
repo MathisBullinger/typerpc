@@ -1,5 +1,5 @@
 {
-  "name": "tsmp",
+  "name": "typerpc",
   "version": "0.0.1",
   "description": "TypeScript Message Passing",
   "main": "lib/index.js",
@@ -9,9 +9,7 @@
   ],
   "scripts": {
     "build": "rm -rf lib && tsc -p tsconfig.prod.json",
-    "test": "jest --config jestconfig.json",
-    "prepare": "npm run build",
-    "postversion": "git push --follow-tags"
+    "test": "jest --config jestconfig.json"
   },
   "repository": {
     "type": "git",
