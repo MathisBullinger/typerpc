@@ -1,11 +1,18 @@
 import type { Schema, Request, Response, FieldBuild, FieldDef } from './types'
+import { encode } from './utils/schema'
 
 type Channel<T extends Schema> = {
   in: <M extends keyof T>(request: Request<T, M>) => void
   out?: (response: Response<T, any>) => void
 }
 
-export default <T extends Schema>(schema: T) => {
+type Internal = {
+  __schema: { result: Object }
+}
+
+export default <R extends Schema, T extends Schema = R & Internal>(
+  schema: R
+) => {
   const handlers: { [K in keyof T]?: Function } = {}
 
   const on = <M extends keyof T>(
@@ -41,6 +48,8 @@ export default <T extends Schema>(schema: T) => {
     }
     return channel
   }
+
+  on('__schema', () => encode(schema))
 
   return { on, createChannel }
 }

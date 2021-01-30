@@ -1,3 +1,4 @@
 node_modules
 lib
 src/test*
+__tests__/build/schemaType.ts

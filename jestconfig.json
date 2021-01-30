@@ -13,5 +13,8 @@
   ],
   "modulePathIgnorePatterns": [
     "<rootDir>/__tests__/utils/*"
+  ],
+  "testPathIgnorePatterns": [
+    "<rootDir>/__tests__/build"
   ]
 }
