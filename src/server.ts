@@ -5,6 +5,7 @@ import type {
   FieldBuild,
   FieldDef,
   ResponseMethods,
+  OptProm,
 } from './types'
 import { encode } from './utils/schema'
 
@@ -28,7 +29,9 @@ export default <R extends Schema, T extends Schema = R & Internal>(
       ...[params]: T[M]['params'] extends FieldDef
         ? [FieldBuild<T[M]['params']>]
         : []
-    ) => T[M]['result'] extends FieldDef ? FieldBuild<T[M]['result']> : void
+    ) => OptProm<
+      T[M]['result'] extends FieldDef ? FieldBuild<T[M]['result']> : void
+    >
   ) => {
     handlers[method] = handler
   }
@@ -45,13 +48,26 @@ export default <R extends Schema, T extends Schema = R & Internal>(
 
   const createChannel = (): Channel<T> => {
     const channel: Channel<T> = {
-      in(request) {
+      async in(request) {
         if (typeof handlers[request.method] !== 'function')
           return respond(channel)(request.id!, {
             error: { code: -32001, message: 'Invalid notification id' },
           })
 
-        const result = handlers[request.method]!((request as any).params)
+        let result: any = undefined
+        try {
+          result = handlers[request.method]!((request as any).params)
+          if (
+            typeof result === 'object' &&
+            result !== null &&
+            typeof result.then === 'function'
+          )
+            result = await result
+        } catch (e) {
+          return respond(channel)(request.id!, {
+            error: { code: -32603, message: 'Internal error' },
+          })
+        }
         if ('id' in request) respond(channel)(request.id!, { result })
       },
     }

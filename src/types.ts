@@ -47,3 +47,5 @@ type ParamPart<
 > = T[M]['params'] extends FieldDef
   ? { params: FieldBuild<T[M]['params']> }
   : {}
+
+export type OptProm<T> = T | Promise<T>

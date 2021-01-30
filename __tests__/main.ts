@@ -1,6 +1,7 @@
 import createServer from '../src/server'
 import createClient from '../src/client'
 import type { Request, Response, ResponseMethods } from '../src/types'
+import fetch from 'node-fetch'
 
 const Person = { name: String, age: Number } as const
 const schema = {
@@ -13,6 +14,7 @@ const schema = {
   age: { params: Person, result: Person },
   older: { params: Object, result: Person },
   unhandled: { result: Object },
+  fetch: { params: String, result: String },
 } as const
 type Schema = typeof schema
 
@@ -26,13 +28,17 @@ server.on('capitalize', v => v[0].toUpperCase() + v.slice(1))
 server.on('person', ([name, age]) => ({ name, age }))
 server.on('age', ({ name, age }) => ({ name, age: age + 30 }))
 server.on('older', ([a, b]) => (a.age > b.age ? a : b))
+server.on('fetch', async url => {
+  const txt = await fetch(url).then(res => res.text())
+  return txt.match(/(?<=<h1>)([\w\s]+)/)?.[0] ?? 'no match'
+})
 
 test('server', async () => {
-  expect(() =>
+  await expect(() =>
     server
       .createChannel()
       .in({ jsonrpc: '2.0', method: 'add', params: [1, 2], id: 1 })
-  ).toThrow()
+  ).rejects.toThrow()
 
   const inOut = <T extends ResponseMethods<typeof schema>>(
     msg: Request<typeof schema, T>
@@ -115,4 +121,11 @@ test('client <-> server', async () => {
   await expect(client.call('add', 1, 2)).resolves.toBe(3)
   await expect(client.call('add', 2, 3)).resolves.toBe(5)
   await expect(client.call('unhandled')).rejects.toMatchObject({ code: -32001 })
+
+  await expect(client.call('fetch', 'https://example.com')).resolves.toBe(
+    'Example Domain'
+  )
+  await expect(
+    client.call('fetch', 'https://empty.bullinger.dev')
+  ).rejects.toMatchObject({ code: -32603 })
 })
