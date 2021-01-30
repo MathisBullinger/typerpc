@@ -6,7 +6,6 @@ import type {
   Response,
   ResponseMethods,
 } from './types'
-import type { Internal } from './server'
 
 type Params<
   T extends Schema,
@@ -14,8 +13,8 @@ type Params<
   P = T[M]['params'] extends FieldDef ? FieldBuild<T[M]['params']> : never
 > = P extends never ? [] : [...(P extends readonly [any, ...any[]] ? P : [P])]
 
-export default <R extends Schema, T extends Schema = Internal & R>(
-  out: <M extends keyof T>(request: Request<T, M>) => void
+export default <T extends Schema>(
+  out?: <M extends keyof T>(request: Request<T, M>) => void
 ) => {
   const msg = <M extends keyof T>({
     method,
@@ -53,7 +52,7 @@ export default <R extends Schema, T extends Schema = Internal & R>(
             pending[id] = [resolve, reject]
           })
 
-    out(msg({ method, params, id }))
+    out!(msg({ method, params, id }))
     return res
   }
 
@@ -69,6 +68,9 @@ export default <R extends Schema, T extends Schema = Internal & R>(
       if ('result' in response) resolve(response.result)
       else reject(response.error)
       delete pending[response.id as number]
+    },
+    set out(v: typeof out) {
+      out = v
     },
   }
 }

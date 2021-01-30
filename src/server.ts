@@ -14,13 +14,23 @@ type Channel<T extends Schema> = {
   out?: <M extends ResponseMethods<T>>(response: Response<T, M>) => void
 }
 
-export type Internal = {
-  __schema: { result: Object }
+export const internal = {
+  __schema: { result: Object },
+} as const
+
+type Opts<T extends boolean> = {
+  introspection?: T
 }
 
-export default <R extends Schema, T extends Schema = R & Internal>(
-  schema: R
+export default <
+  R extends Schema,
+  I extends boolean = true,
+  T extends Schema = R & (I extends true ? typeof internal : {})
+>(
+  schema: R,
+  { introspection = true as I }: Opts<I> = {}
 ) => {
+  if (introspection) schema = { ...schema, ...internal }
   const handlers: { [K in keyof T]?: Function } = {}
 
   const on = <M extends keyof T>(
@@ -51,7 +61,7 @@ export default <R extends Schema, T extends Schema = R & Internal>(
       async in(request) {
         if (typeof handlers[request.method] !== 'function')
           return respond(channel)(request.id!, {
-            error: { code: -32001, message: 'Invalid notification id' },
+            error: { code: -32601, message: 'Method not found' },
           })
 
         let result: any = undefined
@@ -68,13 +78,21 @@ export default <R extends Schema, T extends Schema = R & Internal>(
             error: { code: -32603, message: 'Internal error' },
           })
         }
-        if ('id' in request) respond(channel)(request.id!, { result })
+        if (!('id' in request)) return
+        respond(channel)(
+          request.id!,
+          'result' in schema[request.method as any]
+            ? { result }
+            : {
+                error: { code: -32001, message: 'Invalid notification id' },
+              }
+        )
       },
     }
     return channel
   }
 
-  on('__schema', () => encode(schema))
+  if (introspection) on('__schema', () => encode({ ...schema, ...internal }))
 
   return { on, createChannel }
 }

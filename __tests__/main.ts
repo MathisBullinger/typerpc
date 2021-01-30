@@ -1,4 +1,4 @@
-import createServer from '../src/server'
+import createServer, { internal } from '../src/server'
 import createClient from '../src/client'
 import type { Request, Response, ResponseMethods } from '../src/types'
 import fetch from 'node-fetch'
@@ -16,7 +16,7 @@ const schema = {
   unhandled: { result: Object },
   fetch: { params: String, result: String },
 } as const
-type Schema = typeof schema
+type Schema = typeof schema & typeof internal
 
 const server = createServer(schema)
 
@@ -115,12 +115,13 @@ test('client', async () => {
 
 test('client <-> server', async () => {
   const channel = server.createChannel()
-  const client = createClient<Schema>(channel.in)
+  const client = createClient<Schema>()
+  client.out = channel.in
   channel.out = client.in
 
   await expect(client.call('add', 1, 2)).resolves.toBe(3)
   await expect(client.call('add', 2, 3)).resolves.toBe(5)
-  await expect(client.call('unhandled')).rejects.toMatchObject({ code: -32001 })
+  await expect(client.call('unhandled')).rejects.toMatchObject({ code: -32601 })
 
   await expect(client.call('fetch', 'https://example.com')).resolves.toBe(
     'Example Domain'
@@ -128,4 +129,20 @@ test('client <-> server', async () => {
   await expect(
     client.call('fetch', 'https://empty.bullinger.dev')
   ).rejects.toMatchObject({ code: -32603 })
+})
+
+test('server introspection', async () => {
+  const channel1 = createServer({}).createChannel()
+  const client1 = createClient<typeof internal>(channel1.in)
+  channel1.out = client1.in
+  await expect(client1.call('__schema')).resolves.toEqual({
+    __schema: { result: 'Object' },
+  })
+
+  const channel2 = createServer({}, { introspection: false }).createChannel()
+  const client2 = createClient<{}>(channel2.in)
+  channel2.out = client2.in
+  await expect(client2.call('__schema' as never)).rejects.toMatchObject({
+    code: -32601,
+  })
 })
