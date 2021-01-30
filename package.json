@@ -1,7 +1,7 @@
 {
   "name": "typerpc",
   "version": "0.0.1",
-  "description": "TypeScript Message Passing",
+  "description": "JSON-RPC implementation in TypeScript",
   "main": "lib/index.js",
   "types": "lib/index.d.ts",
   "files": [
@@ -9,18 +9,20 @@
   ],
   "scripts": {
     "build": "rm -rf lib && tsc -p tsconfig.prod.json",
-    "test": "jest --config jestconfig.json"
+    "test": "jest --config jestconfig.json",
+    "prepare": "npm run build",
+    "postversion": "git push --follow-tags"
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/MathisBullinger/tsmp.git"
+    "url": "git+https://github.com/MathisBullinger/typerpc.git"
   },
   "author": "Mathis Bullinger",
   "license": "ISC",
   "bugs": {
-    "url": "https://github.com/MathisBullinger/tsmp/issues"
+    "url": "https://github.com/MathisBullinger/typerpc/issues"
   },
-  "homepage": "https://github.com/MathisBullinger/tsmp#readme",
+  "homepage": "https://github.com/MathisBullinger/typerpc#readme",
   "devDependencies": {
     "@types/jest": "^26.0.20",
     "eslint": "^7.18.0",
