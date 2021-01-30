@@ -1,9 +1,6 @@
 export const encode = (node: any): any => {
   if (node === null) return
-  if (typeof node === 'function') {
-    const name = node.prototype?.constructor?.name
-    return name === 'Object' ? 'any' : name?.toLowerCase()
-  }
+  if (typeof node === 'function') return node.prototype?.constructor?.name
   if (Array.isArray(node)) return node.map(encode)
   if (typeof node === 'object')
     return Object.fromEntries(
@@ -11,15 +8,3 @@ export const encode = (node: any): any => {
     )
   return node
 }
-
-export const formatType = (schema: any) =>
-  JSON.stringify(
-    Object.fromEntries(
-      Object.entries(
-        schema
-      ).map(([k, { params = 'never', result = 'void' }]: any) => [
-        k,
-        { params, result },
-      ])
-    )
-  ).replace(/"/g, '')

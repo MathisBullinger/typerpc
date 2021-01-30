@@ -1,7 +1,6 @@
 import createServer from '../src/server'
 import createClient from '../src/client'
 import type { Request, Response } from '../src/types'
-import { encode, formatType } from '../src/utils/schema'
 import _schema from './build/schema.js'
 import type { Schema } from './build/schemaType'
 
@@ -82,8 +81,8 @@ test('server', async () => {
   ).resolves.toMatchObject({ result: person })
 })
 
-test.only('client', async () => {
-  const _client = createClient<Schema>(console.log)
+test('client', async () => {
+  const _client = createClient<Schema>(() => {})
   type Client = typeof _client
 
   const expectRequest = (func: (client: Client) => void, expected: any) =>
@@ -92,6 +91,7 @@ test.only('client', async () => {
     ).resolves.toEqual({ jsonrpc: '2.0', ...expected })
 
   await expectRequest(c => c.notify('greet'), { method: 'greet' })
+
   await expectRequest(c => c.notify('add', 1, 2), {
     method: 'add',
     params: [1, 2],
@@ -105,4 +105,13 @@ test.only('client', async () => {
     params: { name: 'John', age: 50 },
   })
   await expectRequest(c => c.call('greet'), { method: 'greet', id: 0 })
+})
+
+test('client <-> server', async () => {
+  const channel = server.createChannel()
+  const client = createClient<Schema>(channel.in)
+  channel.out = client.in
+
+  await expect(client.call('add', 1, 2)).resolves.toBe(3)
+  await expect(client.call('add', 2, 3)).resolves.toBe(5)
 })

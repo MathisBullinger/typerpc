@@ -3,10 +3,10 @@ import { encode } from './utils/schema'
 
 type Channel<T extends Schema> = {
   in: <M extends keyof T>(request: Request<T, M>) => void
-  out?: (response: Response<T, any>) => void
+  out?: <M extends keyof T>(response: Response<T, M>) => void
 }
 
-type Internal = {
+export type Internal = {
   __schema: { result: Object }
 }
 
