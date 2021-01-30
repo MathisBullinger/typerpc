@@ -1,27 +1,25 @@
 import createServer from '../src/server'
 import createClient from '../src/client'
-import type { Request, Response } from '../src/types'
-import _schema from './build/schema.js'
-import type { Schema } from './build/schemaType'
+import type { Request, Response, ResponseMethods } from '../src/types'
 
 const Person = { name: String, age: Number } as const
 const schema = {
   greet: {},
+  time: { result: String },
   add: { params: [Number, Number], result: Number },
   concat: { params: [String, String], result: String },
   capitalize: { params: String, result: String },
   person: { params: [String, Number], result: Person },
   age: { params: Person, result: Person },
   older: { params: Object, result: Person },
+  unhandled: { result: Object },
 } as const
-
-test('schema matches', () => {
-  expect(schema).toEqual(_schema)
-})
+type Schema = typeof schema
 
 const server = createServer(schema)
 
 server.on('greet', () => {})
+server.on('time', () => new Date().toISOString())
 server.on('add', ([a, b]) => a + b)
 server.on('concat', ([a, b]) => a + b)
 server.on('capitalize', v => v[0].toUpperCase() + v.slice(1))
@@ -36,7 +34,7 @@ test('server', async () => {
       .in({ jsonrpc: '2.0', method: 'add', params: [1, 2], id: 1 })
   ).toThrow()
 
-  const inOut = <T extends keyof typeof schema>(
+  const inOut = <T extends ResponseMethods<typeof schema>>(
     msg: Request<typeof schema, T>
   ): Promise<Response<typeof schema, T>> =>
     new Promise(res => {
@@ -57,12 +55,14 @@ test('server', async () => {
     inOut({ jsonrpc: '2.0', method: 'capitalize', params: 'abc', id: 1 })
   ).resolves.toEqual({ jsonrpc: '2.0', id: 1, result: 'Abc' })
 
-  const { result: person } = await inOut({
+  const response = await inOut({
     jsonrpc: '2.0',
     method: 'person',
     params: ['John', 30],
     id: 1,
   })
+  if (!('result' in response)) throw Error('no result')
+  const person = response.result
   expect(person).toEqual({ name: 'John', age: 30 })
   await expect(
     inOut({ jsonrpc: '2.0', method: 'age', params: person, id: 1 })
@@ -104,7 +104,7 @@ test('client', async () => {
     method: 'age',
     params: { name: 'John', age: 50 },
   })
-  await expectRequest(c => c.call('greet'), { method: 'greet', id: 0 })
+  await expectRequest(c => c.call('time'), { method: 'time', id: 0 })
 })
 
 test('client <-> server', async () => {
@@ -114,4 +114,5 @@ test('client <-> server', async () => {
 
   await expect(client.call('add', 1, 2)).resolves.toBe(3)
   await expect(client.call('add', 2, 3)).resolves.toBe(5)
+  await expect(client.call('unhandled')).rejects.toMatchObject({ code: -32001 })
 })

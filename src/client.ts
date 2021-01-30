@@ -1,4 +1,11 @@
-import type { Schema, Request, FieldDef, FieldBuild, Response } from './types'
+import type {
+  Schema,
+  Request,
+  FieldDef,
+  FieldBuild,
+  Response,
+  ResponseMethods,
+} from './types'
 import type { Internal } from './server'
 
 type Params<
@@ -33,7 +40,7 @@ export default <R extends Schema, T extends Schema = Internal & R>(
   > = {}
 
   const buildRequest = <ID extends boolean>(includeId: ID) => <
-    M extends keyof T
+    M extends ID extends false ? keyof T : ResponseMethods<T>
   >(
     method: M,
     ...params: Params<T, M>
@@ -56,11 +63,11 @@ export default <R extends Schema, T extends Schema = Internal & R>(
   return {
     notify,
     call,
-    in<M extends keyof T>(response: Response<T, M>) {
+    in<M extends ResponseMethods<T>>(response: Response<T, M>) {
       if (!(response.id! in pending)) return
       const [resolve, reject] = pending[response.id as number]
-      if (response.result) resolve(response.result)
-      else reject('<error>')
+      if ('result' in response) resolve(response.result)
+      else reject(response.error)
       delete pending[response.id as number]
     },
   }

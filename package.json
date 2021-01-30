@@ -9,7 +9,7 @@
   ],
   "scripts": {
     "build": "rm -rf lib && tsc -p tsconfig.prod.json",
-    "test": "npm run build && node __tests__/build/types && jest --config jestconfig.json",
+    "test": "jest --config jestconfig.json",
     "prepare": "npm run build",
     "postversion": "git push --follow-tags"
   },
