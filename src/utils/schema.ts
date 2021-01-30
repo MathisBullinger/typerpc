@@ -12,17 +12,14 @@ export const encode = (node: any): any => {
   return node
 }
 
-export const formatType = (schema: any) => {
-  const res = Object.fromEntries(
-    Object.entries(
-      schema
-    ).map(([k, { params = 'never', result = 'void' }]: any) => [
-      k,
-      { params, result },
-    ])
-  )
-
-  console.log(res.add)
-
-  return JSON.stringify(res).replace(/"/g, '')
-}
+export const formatType = (schema: any) =>
+  JSON.stringify(
+    Object.fromEntries(
+      Object.entries(
+        schema
+      ).map(([k, { params = 'never', result = 'void' }]: any) => [
+        k,
+        { params, result },
+      ])
+    )
+  ).replace(/"/g, '')
