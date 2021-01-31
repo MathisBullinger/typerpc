@@ -1,12 +1,14 @@
 {
   "name": "typerpc",
-  "version": "0.4.0",
+  "version": "0.4.1",
   "description": "JSON-RPC 2.0 implementation in TypeScript",
   "main": "index.js",
   "types": "index.d.ts",
   "scripts": {
     "build": "rm -rf lib && tsc -p tsconfig.prod.json && cp package.json scripts/cli.js lib",
     "test": "jest --config jestconfig.json",
+    "prepare": "npm run build",
+    "prepublishOnly": "cd lib",
     "postversion": "git push --follow-tags"
   },
   "bin": {
