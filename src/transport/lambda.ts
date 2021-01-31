@@ -38,13 +38,13 @@ export default (server: ReturnType<typeof createServer>, endpoint: string) => {
     listeners[name]?.forEach((handler: any) => handler(...args))
   }
 
-  const input = (event: APIGatewayEvent) => {
+  const input = async (event: APIGatewayEvent) => {
     const { eventType: type, connectionId: id } = event.requestContext
     if (!type || !id) return
 
     if (type === 'CONNECT') return onEvent('connect', id)
     if (type === 'DISCONNECT') return onEvent('disconnect', id)
-    if (type === 'MESSAGE' && event.body) getChannel(id).inStr(event.body)
+    if (type === 'MESSAGE' && event.body) await getChannel(id).inStr(event.body)
   }
 
   const on = <T extends RPCEvent>(event: T, handler: EventHandler<T>) => {

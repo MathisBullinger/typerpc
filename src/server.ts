@@ -52,14 +52,18 @@ export default <
     handlers[method] = handler
   }
 
-  const respond = (channel: Channel<T>) => (
+  const respond = (channel: Channel<T>) => async (
     id: string | number | null,
     { result, error }: { result?: any; error?: any }
   ) => {
     if (typeof channel.out !== 'function')
       throw Error('no channel output defined')
 
-    channel.out({ jsonrpc: '2.0', id, ...(result ? { result } : { error }) })
+    await channel.out({
+      jsonrpc: '2.0',
+      id,
+      ...(result ? { result } : { error }),
+    })
   }
 
   const isRequest = (request: any): request is Request<T, any> => {
@@ -124,7 +128,7 @@ export default <
       async in(request) {
         const invalid = validate(request)
         if (invalid)
-          return respond(channel)(request.id ?? null, {
+          return await respond(channel)(request.id ?? null, {
             error: error(invalid),
           })
 
@@ -139,23 +143,25 @@ export default <
             result = await result
         } catch (e) {
           logger?.error(e)
-          return respond(channel)(request.id!, { error: error('internal') })
+          return await respond(channel)(request.id!, {
+            error: error('internal'),
+          })
         }
         if (!('id' in request)) return
-        respond(channel)(
+        await respond(channel)(
           request.id!,
           'result' in schema[request.method as any]
             ? { result }
             : { error: error('notification') }
         )
       },
-      inStr(request) {
+      async inStr(request) {
         try {
           const parsed = JSON.parse(request)
-          this.in(parsed)
+          await this.in(parsed)
         } catch (e) {
           logger?.error('failed to parse')
-          respond(channel)(null, { error: error('parse') })
+          await respond(channel)(null, { error: error('parse') })
         }
       },
     }
@@ -169,7 +175,9 @@ export default <
 }
 
 export type Channel<T extends Schema> = {
-  in: <M extends keyof T>(request: Request<T, M>) => void
-  inStr: (request: string) => void
-  out?: <M extends ResponseMethods<T>>(response: Response<T, M>) => void
+  in: <M extends keyof T>(request: Request<T, M>) => Promise<void>
+  inStr: (request: string) => Promise<void>
+  out?: <M extends ResponseMethods<T>>(
+    response: Response<T, M>
+  ) => void | Promise<void>
 }
