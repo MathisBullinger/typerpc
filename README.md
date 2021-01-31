@@ -57,7 +57,7 @@ server options.
 
 ## Examples
 
-### Basic calculator without network transport
+### Basic calculator without transport
 
 ```ts
 // server side

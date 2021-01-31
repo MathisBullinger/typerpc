@@ -18,7 +18,7 @@ const schema = {
 } as const
 type Schema = typeof schema & typeof internal
 
-const server = createServer(schema)
+const server = createServer(schema, { logger: null })
 
 server.on('greet', () => {})
 server.on('time', () => new Date().toISOString())
@@ -145,4 +145,153 @@ test('server introspection', async () => {
   await expect(client2.call('__schema' as never)).rejects.toMatchObject({
     code: -32601,
   })
+})
+
+test('server errors', async () => {
+  const channel = server.createChannel()
+
+  const addRequest = {
+    jsonrpc: '2.0',
+    method: 'add',
+    params: [1, 2],
+    id: 1,
+  } as const
+
+  await expect(
+    new Promise(res => {
+      channel.out = res
+      channel.in(addRequest)
+    })
+  ).resolves.toMatchObject({ result: 3 })
+
+  await expect(
+    new Promise(res => {
+      channel.out = res
+      channel.inStr(JSON.stringify(addRequest))
+    })
+  ).resolves.toMatchObject({ result: 3 })
+
+  await expect(
+    new Promise(res => {
+      channel.out = res
+      channel.inStr('invalid json')
+    })
+  ).resolves.toEqual({
+    error: { code: -32700, message: 'Parse error' },
+    id: null,
+    jsonrpc: '2.0',
+  })
+
+  const invalid = {
+    jsonrpc: '2.0',
+    id: null,
+    error: { code: -32600, message: 'Invalid request' },
+  }
+
+  await expect(
+    new Promise(res => {
+      channel.out = res
+      channel.in({ foo: 'bar' } as any)
+    })
+  ).resolves.toEqual(invalid)
+
+  await expect(
+    new Promise(res => {
+      channel.out = res
+      channel.in({ jsonrpc: '1.0', method: 'greet' } as any)
+    })
+  ).resolves.toEqual(invalid)
+
+  await expect(
+    new Promise(res => {
+      const strictChannel = createServer(schema, {
+        strictKeyCheck: true,
+      }).createChannel()
+      strictChannel.out = res
+      strictChannel.in({ jsonrpc: '2.0', method: 'greet', foo: 'bar' } as any)
+    })
+  ).resolves.toEqual(invalid)
+
+  // params validation
+
+  await expect(
+    new Promise(res => {
+      channel.out = res
+      channel.in({
+        jsonrpc: '2.0',
+        method: 'greet',
+        params: 'foo',
+        id: 0,
+      } as any)
+    })
+  ).resolves.toMatchObject({ error: { code: -32602 } })
+
+  await expect(
+    new Promise(res => {
+      channel.out = res
+      channel.in({ jsonrpc: '2.0', method: 'add', id: 0 } as any)
+    })
+  ).resolves.toMatchObject({ error: { code: -32602 } })
+
+  await expect(
+    new Promise(res => {
+      channel.out = res
+      channel.in({ jsonrpc: '2.0', method: 'add', params: '', id: 0 } as any)
+    })
+  ).resolves.toMatchObject({ error: { code: -32602 } })
+
+  await expect(
+    new Promise(res => {
+      channel.out = res
+      channel.in({
+        jsonrpc: '2.0',
+        method: 'capitalize',
+        params: ['a'],
+        id: 0,
+      } as any)
+    })
+  ).resolves.toMatchObject({ error: { code: -32602 } })
+
+  await expect(
+    new Promise(res => {
+      channel.out = res
+      channel.in({
+        jsonrpc: '2.0',
+        method: 'add',
+        params: [1, 2, 3] as any,
+        id: 0,
+      })
+    })
+  ).resolves.toMatchObject({ error: { code: -32602 } })
+
+  await expect(
+    new Promise(res => {
+      channel.out = res
+      channel.in({ jsonrpc: '2.0', method: 'fetch', params: 1, id: 0 } as any)
+    })
+  ).resolves.toMatchObject({ error: { code: -32602 } })
+
+  await expect(
+    new Promise(res => {
+      channel.out = res
+      channel.in({
+        jsonrpc: '2.0',
+        method: 'add',
+        params: [1, '2'],
+        id: 0,
+      } as any)
+    })
+  ).resolves.toMatchObject({ error: { code: -32602 } })
+
+  await expect(
+    new Promise(res => {
+      channel.out = res
+      channel.in({
+        jsonrpc: '2.0',
+        method: 'age',
+        params: { name: 0, age: 1 },
+        id: 0,
+      } as any)
+    })
+  ).resolves.toMatchObject({ error: { code: -32602 } })
 })
