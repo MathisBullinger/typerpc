@@ -154,6 +154,7 @@ export default <
           const parsed = JSON.parse(request)
           this.in(parsed)
         } catch (e) {
+          logger?.error('failed to parse')
           respond(channel)(null, { error: error('parse') })
         }
       },
