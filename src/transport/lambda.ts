@@ -34,16 +34,21 @@ export default (server: ReturnType<typeof createServer>, endpoint: string) => {
     return (channels[id] = channel)
   }
 
-  const onEvent = <T extends RPCEvent>(name: T, ...args: EventArgs<T>) => {
-    listeners[name]?.forEach((handler: any) => handler(...args))
+  const onEvent = async <T extends RPCEvent>(
+    name: T,
+    ...args: EventArgs<T>
+  ) => {
+    await Promise.all(
+      listeners[name]?.map((handler: any) => handler(...args)) as any
+    )
   }
 
   const input = async (event: APIGatewayEvent) => {
     const { eventType: type, connectionId: id } = event.requestContext
     if (!type || !id) return
 
-    if (type === 'CONNECT') return onEvent('connect', id)
-    if (type === 'DISCONNECT') return onEvent('disconnect', id)
+    if (type === 'CONNECT') return await onEvent('connect', id)
+    if (type === 'DISCONNECT') return await onEvent('disconnect', id)
     if (type === 'MESSAGE' && event.body) await getChannel(id).inStr(event.body)
   }
 
