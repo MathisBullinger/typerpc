@@ -4,11 +4,12 @@
   "description": "JSON-RPC 2.0 implementation in TypeScript",
   "main": "index.js",
   "types": "index.d.ts",
+  "private": "true",
   "scripts": {
     "build": "rm -rf lib && tsc -p tsconfig.prod.json && cp package.json scripts/cli.js lib",
     "test": "jest --config jestconfig.json",
     "prepare": "npm run build",
-    "prepublishOnly": "cd lib",
+    "publish": "npm run build && cd lib && jq 'del(.scripts,.private)' package.json > package.tmp && mv package.tmp package.json && npm publish lib",
     "postversion": "git push --follow-tags"
   },
   "bin": {
