@@ -1,0 +1,25 @@
+import type { Transport } from '../../src/endpoint'
+
+function makeBroker() {
+  const connections: Record<string, Transport<string>> = {}
+  return {
+    register(name: string, transport: Transport<string>) {
+      connections[name] = transport
+    },
+    async call(target: string, caller: Transport<string>, msg: string) {
+      const [name] = Object.entries(connections).find(([, v]) => v === caller)!
+      await connections[target].in!(msg, name)
+    },
+  }
+}
+const broker = makeBroker()
+
+export default function directTransport(route: string): Transport<string> {
+  const transport: Transport<string> = {
+    out(addr, msg) {
+      broker.call(addr, transport, msg)
+    },
+  }
+  broker.register(route, transport)
+  return transport
+}

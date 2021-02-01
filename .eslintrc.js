@@ -20,5 +20,6 @@ module.exports = {
     '@typescript-eslint/ban-types': 'off',
     '@typescript-eslint/no-non-null-assertion': 'off',
     '@typescript-eslint/no-empty-function': 'off',
+    '@typescript-eslint/no-extra-semi': 'off',
   },
 }
