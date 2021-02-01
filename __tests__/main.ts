@@ -1,4 +1,4 @@
-import Endpoint from '../src/endpoint'
+import Endpoint from '../src'
 import createTransport from './utils/transport'
 import { encode } from '../src/utils/schema'
 import fetch from 'node-fetch'
@@ -135,7 +135,7 @@ test('error responses', async () => {
   ).rejects.toMatchObject({ code: -32603 })
 })
 
-test.only('introspection', async () => {
+test('introspection', async () => {
   await expect(api.call('__schema')).resolves.toEqual(encode(server.schema))
 
   const noIntro = new Endpoint(

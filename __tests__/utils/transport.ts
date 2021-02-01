@@ -1,4 +1,4 @@
-import type { Transport } from '../../src/endpoint'
+import type { Transport } from '../../src'
 
 function makeBroker() {
   const connections: Record<string, Transport<string>> = {}
@@ -18,6 +18,9 @@ export default function directTransport(route: string): Transport<string> {
   const transport: Transport<string> = {
     out(addr, msg) {
       broker.call(addr, transport, msg)
+    },
+    in(msg: string, caller: string) {
+      transport.onInput?.(msg, caller)
     },
   }
   broker.register(route, transport)

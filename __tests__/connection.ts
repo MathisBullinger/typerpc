@@ -2,6 +2,7 @@ import Connection from '../src/connection'
 
 const transport = {
   out: console.error,
+  in: console.error,
 }
 
 const expectOut = async (func: Function, expected: any) =>

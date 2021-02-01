@@ -1,3 +1,4 @@
+import type { Transport } from '.'
 import type {
   Schema,
   FieldDef,
@@ -5,7 +6,6 @@ import type {
   Response,
   ResponseMethod,
 } from './types'
-import type { Transport } from './endpoint'
 
 export default class Connection<T extends Schema> {
   private requestCount = 0
