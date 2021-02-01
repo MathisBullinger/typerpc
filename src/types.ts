@@ -29,14 +29,14 @@ export type Request<T extends Schema, M extends keyof T> = {
   id?: string | number
 } & ParamPart<T, M>
 
-export type Response<T extends Schema, M extends ResponseMethods<T>> = {
+export type Response<T extends Schema, M extends ResponseMethod<T>> = {
   jsonrpc: '2.0'
   id: string | number | null
 } & ({ result: FieldBuild<T[M]['result']> } | { error: RPCError })
 
 export type RPCError = { code: number; message: string; data?: any }
 
-export type ResponseMethods<T extends Schema> = {
+export type ResponseMethod<T extends Schema> = {
   [K in keyof T]: T[K]['result'] extends FieldDef ? K : never
 }[keyof T]
 
