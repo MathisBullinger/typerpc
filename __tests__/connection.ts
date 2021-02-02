@@ -1,6 +1,7 @@
 import Connection from '../src/connection'
+import type { Transport } from '../src'
 
-const transport = {
+const transport: Transport<string> = {
   out: console.error,
   in: console.error,
 }

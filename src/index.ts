@@ -141,7 +141,11 @@ export default class Endpoint<
   ) {
     let result: any = undefined
     try {
-      result = this.handlers[request.method]!((request as any).params)
+      result = this.handlers[request.method]!(
+        (request as any).params,
+        caller,
+        transport
+      )
       if (isPromise(result)) result = await result
     } catch (e) {
       this.logger?.error('failed to invoke procedure', request, e)
@@ -242,16 +246,22 @@ export default class Endpoint<
   }
 }
 
-type Registration<T extends Schema> = <M extends keyof T>(
+type Registration<T extends Schema> = <M extends keyof T, A>(
   method: M,
-  handler: (
-    ...[params]: T[M]['params'] extends FieldDef
-      ? [FieldBuild<T[M]['params']>]
-      : []
-  ) => OptProm<
-    T[M]['result'] extends FieldDef ? FieldBuild<T[M]['result']> : void
-  >
+  handler: Handler<T, M, A>
 ) => void
+
+type Handler<T extends Schema, M extends keyof T, A> = (
+  ...args: [
+    ...params: T[M]['params'] extends FieldDef
+      ? [FieldBuild<T[M]['params']>]
+      : [],
+    caller: A,
+    transport: Transport<A>
+  ]
+) => OptProm<
+  T[M]['result'] extends FieldDef ? FieldBuild<T[M]['result']> : void
+>
 
 const validRequestKeys = ['jsonrpc', 'method', 'params', 'id']
 
