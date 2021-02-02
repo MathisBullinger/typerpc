@@ -17,7 +17,7 @@ export type FieldBuild<T extends FieldDef> = T extends StringConstructor
   ? any
   : T extends null
   ? null
-  : T extends { [K: string]: FieldBaseDef }
+  : T extends { [K: string]: FieldDef }
   ? { [K in keyof T]: FieldBuild<T[K]> }
   : T extends readonly [FieldBaseDef, ...any[]]
   ? { [K in keyof T]: FieldBuild<T[K]> }

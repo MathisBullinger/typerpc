@@ -5,7 +5,7 @@
     "declaration": true,
     "outDir": "./lib",
     "strict": true,
-    "lib": ["ESNext"],
+    "lib": ["ESNext", "DOM"],
     "downlevelIteration": true,
     "allowJs": true,
     "esModuleInterop": true
