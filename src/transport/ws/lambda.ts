@@ -4,6 +4,7 @@ import type { Transport } from '../..'
 
 type WsTransport = Transport<string> & {
   on<T extends RPCEvent>(name: T, handler: EventHandler<T>): Unsubscribe
+  createHandler(): (event: APIGatewayEvent) => Promise<any>
 }
 type Unsubscribe = () => void
 
@@ -47,6 +48,11 @@ export default function lambdaWSTransport(wsUrl: string): WsTransport {
       return () => {
         listeners[name] = listeners[name]!.filter(f => f !== handler)
       }
+    },
+    createHandler: () => async (event: APIGatewayEvent) => {
+      if (!event.requestContext.connectionId || !event.body) return
+      await transport.in(event)
+      return { statusCode: 200 }
     },
   }
 
