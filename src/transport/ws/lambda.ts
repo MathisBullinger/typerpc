@@ -2,7 +2,12 @@ import { ApiGatewayManagementApi } from 'aws-sdk'
 import type { APIGatewayEvent } from 'aws-lambda'
 import type { Transport } from '../..'
 
-export default function lambdaWSTransport(wsUrl: string): Transport<string> {
+type WsTransport = Transport<string> & {
+  on<T extends RPCEvent>(name: T, handler: EventHandler<T>): Unsubscribe
+}
+type Unsubscribe = () => void
+
+export default function lambdaWSTransport(wsUrl: string): WsTransport {
   const gateway = new ApiGatewayManagementApi({
     apiVersion: '2018-11-29',
     endpoint: wsUrl,
@@ -19,24 +24,28 @@ export default function lambdaWSTransport(wsUrl: string): Transport<string> {
     )
   }
 
-  const transport: Transport<string> = {
+  const transport: WsTransport = {
     async out(address, msg) {
-      console.log('out', address, msg)
       await gateway
         .postToConnection({ ConnectionId: address, Data: msg })
         .promise()
     },
     async in(event: APIGatewayEvent) {
       const { eventType: type, connectionId: id } = event.requestContext
-      console.log('got', type, id)
       if (!type || !id) return
       if (type === 'CONNECT') return await onEvent('connect', id)
       if (type === 'DISCONNECT') return await onEvent('disconnect', id)
       if (type === 'MESSAGE' && event.body) {
-        console.log('in:', id, event.body)
         if (typeof transport.onInput !== 'function')
           throw Error('no transport input handler registered')
         await transport.onInput(event.body, id)
+      }
+    },
+    on(name, handler) {
+      if (!(name in listeners)) listeners[name] = []
+      listeners[name]!.push(handler as any)
+      return () => {
+        listeners[name] = listeners[name]!.filter(f => f !== handler)
       }
     },
   }
@@ -46,7 +55,9 @@ export default function lambdaWSTransport(wsUrl: string): Transport<string> {
 
 const rpcEvents = ['connect', 'disconnect'] as const
 type RPCEvent = typeof rpcEvents[number]
-type EventHandler<T extends RPCEvent> = (...args: EventArgs<T>) => void
+type EventHandler<T extends RPCEvent> = (
+  ...args: EventArgs<T>
+) => void | Promise<void>
 type EventArgs<T extends RPCEvent> = T extends 'connect' | 'disconnect'
   ? [connectionId: string]
   : never

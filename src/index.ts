@@ -246,12 +246,12 @@ export default class Endpoint<
   }
 }
 
-type Registration<T extends Schema> = <M extends keyof T, A>(
+type Registration<T extends Schema> = <M extends keyof T>(
   method: M,
-  handler: Handler<T, M, A>
+  handler: Handler<T, M>
 ) => void
 
-type Handler<T extends Schema, M extends keyof T, A> = (
+type Handler<T extends Schema, M extends keyof T> = <A>(
   ...args: [
     ...params: T[M]['params'] extends FieldDef
       ? [FieldBuild<T[M]['params']>]
