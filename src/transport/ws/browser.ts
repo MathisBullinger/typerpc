@@ -26,9 +26,9 @@ export default function browserWSTransport(endpoint: string): WsTransport {
         throw Error('no input handler defined')
       transport.onInput(msg, endpoint)
     },
-    connect(endpoint) {
-      endpoint.addTransport(transport)
-      return endpoint.addConnection(endpoint, transport)
+    connect(rpc) {
+      rpc.addTransport(transport)
+      return rpc.addConnection(endpoint, transport)
     },
   }
 
