@@ -8,10 +8,31 @@ type WsTransport = Transport<string> & {
 }
 
 export default function browserWSTransport(endpoint: string): WsTransport {
-  const ws = new WebSocket(endpoint)
-  const queue: string[] = []
+  let ws: WebSocket
+  let queue: string[] = []
+  const bufferMsg = (msg: string) => void queue.push(msg)
+  let handleOut: (msg: string) => void = bufferMsg
 
-  let handleOut = (msg: string) => void queue.push(msg)
+  const connect = () => {
+    ws = new WebSocket(endpoint)
+
+    ws.onopen = () => {
+      handleOut = msg => ws.send(msg)
+      queue.forEach(msg => ws.send(msg))
+      queue = []
+    }
+
+    ws.onclose = () => {
+      handleOut = bufferMsg
+      connect()
+    }
+
+    ws.onmessage = ({ data }) => {
+      transport.in(data)
+    }
+  }
+
+  connect()
 
   const transport: WsTransport = {
     out: (addr, msg) => {
@@ -30,15 +51,6 @@ export default function browserWSTransport(endpoint: string): WsTransport {
       rpc.addTransport(transport)
       return rpc.addConnection(endpoint, transport)
     },
-  }
-
-  ws.onopen = () => {
-    handleOut = msg => void ws.send(msg)
-    queue.forEach(msg => ws.send(msg))
-  }
-
-  ws.onmessage = ({ data }) => {
-    transport.in(data)
   }
 
   return transport

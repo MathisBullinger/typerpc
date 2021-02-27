@@ -50,8 +50,8 @@ export default function lambdaWSTransport(wsUrl: string): WsTransport {
       }
     },
     createHandler: () => async (event: APIGatewayEvent) => {
-      if (!event.requestContext.connectionId || !event.body) return
-      await transport.in(event)
+      if (event.requestContext.connectionId && event.body)
+        await transport.in(event)
       return { statusCode: 200 }
     },
   }
