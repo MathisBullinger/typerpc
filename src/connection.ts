@@ -35,8 +35,12 @@ export default class Connection<T extends Schema> {
     return prom
   }
 
-  public batch(): BatchBuilder<void, T> {
-    return new BatchBuilder(this)
+  public batch({
+    silent = false,
+  }: {
+    silent?: boolean
+  } = {}): BatchBuilder<void, T> {
+    return new BatchBuilder(this, silent)
   }
 
   public async _response(response: Response<T, any>) {
@@ -76,6 +80,7 @@ class BatchBuilder<T, S extends Schema> extends Promise<T> {
 
   constructor(
     private readonly connection: Connection<S>,
+    private readonly silent: boolean,
     private readonly parent?: BatchBuilder<unknown, S>,
     prom?: Promise<T>,
     private readonly msg?: string
@@ -96,15 +101,19 @@ class BatchBuilder<T, S extends Schema> extends Promise<T> {
         const batched = `[${this.msgs.join(',')}]`
         try {
           await this.connection.transport.out(this.connection.address, batched)
-          resolve()
+          const results = await Promise.allSettled(this.notifications)
+          if (this.silent) return resolve()
+          const err = results.find(
+            v => v.status === 'rejected'
+          ) as PromiseRejectedResult
+          if (err) reject(err.reason)
+          resolve(results.map(v => v.status === 'fulfilled' && v.value))
         } catch (e) {
           reject(e)
         }
       }
     }
   }
-
-  private exec?: () => any
 
   private guardMutable() {
     if (!this.root.exec)
@@ -123,9 +132,11 @@ class BatchBuilder<T, S extends Schema> extends Promise<T> {
     ...params: Params<S, M>
   ): BatchBuilder<Response<S, M>, S> {
     this.guardMutable()
-    return this.addChild(
-      ...this.patchTransport(() => this.connection.call(method, ...params))
+    const [prom, msg] = this.patchTransport(() =>
+      this.connection.call(method, ...params)
     )
+    this.root.notifications.push(prom)
+    return this.addChild(prom, msg)
   }
 
   private patchTransport<T>(task: () => T): [T, string] {
@@ -143,12 +154,8 @@ class BatchBuilder<T, S extends Schema> extends Promise<T> {
     }
   }
 
-  private children: BatchBuilder<unknown, S>[] = []
-
-  private get root(): BatchBuilder<unknown, S> {
-    if (!this.parent) return this
-    return this.parent.root
-  }
+  private exec?: () => any
+  private notifications: Promise<any>[] = []
 
   private get msgs(): string[] {
     return [
@@ -157,8 +164,21 @@ class BatchBuilder<T, S extends Schema> extends Promise<T> {
     ]
   }
 
+  private get root(): BatchBuilder<unknown, S> {
+    if (!this.parent) return this
+    return this.parent.root
+  }
+
+  private children: BatchBuilder<unknown, S>[] = []
+
   private addChild<T>(prom: Promise<T>, msg: string): BatchBuilder<T, S> {
-    const child = new BatchBuilder<T, S>(this.connection, this, prom, msg)
+    const child = new BatchBuilder<T, S>(
+      this.connection,
+      false,
+      this,
+      prom,
+      msg
+    )
     this.children.push(child)
     return child
   }

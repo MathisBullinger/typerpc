@@ -151,8 +151,49 @@ test('introspection', async () => {
 })
 
 test.only('batch', async () => {
-  const batch = api.batch()
-  expect(() => batch.notify('greet')).not.toThrow()
-  await batch
-  expect(() => batch.notify('greet')).toThrow()
+  {
+    const batch = api.batch()
+    expect(() => batch.notify('time')).not.toThrow()
+    await batch
+    expect(() => batch.notify('time')).toThrow()
+  }
+
+  {
+    const batch = api.batch()
+    const [r1, r2] = [batch.call('add', 1, 2), batch.call('add', 2, 3)]
+    const r3 = r1.call('add', 3, 4)
+    await expect(Promise.all([r1, r2, r3])).resolves.toEqual([3, 5, 7])
+    await expect(batch).resolves.toEqual([3, 5, 7])
+  }
+
+  {
+    await expect(
+      api.batch({ silent: true }).call('add', '1' as any, 2)
+    ).rejects.toMatchObject({ code: -32602 })
+  }
+
+  {
+    const batch = api.batch()
+    await expect(
+      batch
+        .call('add', 1, 2)
+        .call('add', 3, 4)
+        .call('add', '2' as any, 3)
+    ).rejects.toMatchObject({ code: -32602 })
+    await expect(batch).rejects.toMatchObject({ code: -32602 })
+  }
+
+  {
+    const batch = api.batch()
+    batch.call('add', 1, 2).notify('time').call('time')
+    await expect(batch).resolves.toHaveLength(2)
+  }
+
+  await expect(api.batch()).resolves.toEqual([])
+
+  {
+    const batch = api.batch()
+    batch.notify('add', 1, 2).notify('time')
+    await expect(batch).resolves.toEqual([])
+  }
 })
