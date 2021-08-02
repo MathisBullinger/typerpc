@@ -150,7 +150,7 @@ test('introspection', async () => {
   await expect(api2.call('__intro')).rejects.toMatchObject({ code: -32601 })
 })
 
-test.only('batch', async () => {
+test('batch', async () => {
   {
     const batch = api.batch()
     expect(() => batch.notify('time')).not.toThrow()
