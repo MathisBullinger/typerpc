@@ -41,6 +41,16 @@ test('.call output', async () => {
   })
 })
 
+test.only('batch', async () => {
+  await expectOut(
+    async () => await connection.batch().notify('add', 1, 2).call('add', 3, 4),
+    [
+      { jsonrpc: '2.0', method: 'add', params: [1, 2] },
+      { jsonrpc: '2.0', method: 'add', params: [3, 4], id: 0 },
+    ]
+  )
+})
+
 test('response', async () => {
   ;(connection as any).transport = {
     ...connection.transport,

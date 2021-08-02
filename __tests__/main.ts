@@ -149,3 +149,10 @@ test('introspection', async () => {
   // @ts-ignore
   await expect(api2.call('__intro')).rejects.toMatchObject({ code: -32601 })
 })
+
+test.only('batch', async () => {
+  const batch = api.batch()
+  expect(() => batch.notify('greet')).not.toThrow()
+  await batch
+  expect(() => batch.notify('greet')).toThrow()
+})
