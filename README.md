@@ -120,9 +120,6 @@ const calculatorCPU = new Endpoint({
 })
 
 calculatorCPU.on('add', ([a, b]) => a + b)
-calculatorCPU.on('sub', ([a, b]) => a - b)
-calculatorCPU.on('mult', ([a, b]) => a * b)
-// ...I think you get the point...
 calculatorCPU.on('shutdown', () => {/*...*/})
 
 // In this example the user doesn't provide any API that the calculator
