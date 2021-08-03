@@ -55,11 +55,13 @@ export default class Endpoint<
     this.strictKeyCheck = opts.strictKeyCheck ?? false
     this.validateParams = opts.validateParams ?? true
     this.introspectable = introspection === false ? false : true
-    this.schema = (!this.introspectable
-      ? schema
-      : !schema
-      ? internal
-      : { ...schema, ...internal }) as any
+    this.schema = (
+      !this.introspectable
+        ? schema
+        : !schema
+        ? internal
+        : { ...schema, ...internal }
+    ) as any
     if (this.introspectable)
       this.handlers.__schema = () => encode({ ...schema, ...internal })
   }
@@ -106,55 +108,92 @@ export default class Endpoint<
     this.handlers[method as any] = handler
   }
 
-  private ingress = (transport: Transport<any>) => async (
-    msg: string,
-    caller: any
-  ) => {
-    let parsed: any
-    try {
-      parsed = JSON.parse(msg)
-      if (
-        typeof parsed !== 'object' ||
-        parsed === null ||
-        Array.isArray(parsed)
+  private ingress =
+    (transport: Transport<any>) => async (msg: string, caller: any) => {
+      const respondError =
+        (transport: { out: (address: any, msg: string) => any }) =>
+        async (type: keyof typeof errors, id?: string | number | null) => {
+          await this.respondError(type, transport as any, caller, id)
+        }
+      const respondResult =
+        (transport: any) => async (result: any, id: string | number) => {
+          await this.respondResult(result, transport, caller, id)
+        }
+
+      let parsed: any
+      try {
+        parsed = JSON.parse(msg)
+      } catch (e) {
+        return await respondError(transport)('parse')
+      }
+      if (!Array.isArray(parsed))
+        return await this.handleMsg(
+          parsed,
+          caller,
+          respondError(transport),
+          respondResult(transport)
+        )
+
+      const msgs: string[] = []
+      const out = (_: any, msg: string) => {
+        msgs.push(msg)
+      }
+      await Promise.all(
+        parsed.map(msg =>
+          this.handleMsg(
+            msg,
+            caller,
+            respondError({ out }),
+            respondResult({ out })
+          )
+        )
       )
-        return await this.respondError('request', transport, caller)
-    } catch (e) {
-      return await this.respondError('parse', transport, caller)
+
+      if (msgs.length) await transport.out(caller, `[${msgs.join(',')}]`)
     }
+
+  private async handleMsg(
+    parsed: any,
+    caller: any,
+    respondError: (
+      type: keyof typeof errors,
+      id?: string | number | null
+    ) => Promise<void>,
+    respondResult: (result: any, id: string | number) => Promise<void>
+  ) {
+    if (typeof parsed !== 'object' || parsed === null)
+      return await respondError('request')
     if (this.isResponse(parsed)) {
       const connection = this.connections.get(caller)
       if (connection) connection._response(parsed)
       else this.logger?.error('unsolicited response from', caller)
     } else {
       const invalid = this.validateRequest(parsed)
-      if (invalid)
-        return await this.respondError(invalid, transport, caller, parsed.id)
-      await this.invokeProcedure(parsed, transport, caller)
+      if (invalid) return await respondError(invalid, parsed.id)
+      await this.invokeProcedure(parsed, respondError, respondResult)
     }
   }
 
   private async invokeProcedure(
     request: Request<Exclude<TSchema, null>, any>,
-    transport: Transport<any>,
-    caller: any
+    respondError: (
+      type: keyof typeof errors,
+      id?: string | number | null
+    ) => Promise<void>,
+    respondResult: (result: any, id: string | number) => Promise<void>
   ) {
     let result: any = undefined
     try {
-      result = this.handlers[request.method]!(
-        (request as any).params,
-        caller,
-        transport
-      )
+      result = this.handlers[request.method]!((request as any).params)
       if (isPromise(result)) result = await result
     } catch (e) {
       this.logger?.error('failed to invoke procedure', request, e)
-      return await this.respondError('internal', transport, caller, request.id)
+      return await respondError('internal', request.id)
     }
     if (!('id' in request)) return
     if ('result' in this.schema![request.method])
-      await this.respondResult(result, transport, caller, request.id!)
-    else await this.respondError('notification', transport, caller, request.id)
+      await respondResult(result, request.id!)
+    else await respondError('notification', request.id)
   }
 
   private validateRequest(
@@ -255,9 +294,7 @@ type Handler<T extends Schema, M extends keyof T> = <A>(
   ...args: [
     ...params: T[M]['params'] extends FieldDef
       ? [FieldBuild<T[M]['params']>]
-      : [],
-    caller: A,
-    transport: Transport<A>
+      : []
   ]
 ) => OptProm<
   T[M]['result'] extends FieldDef ? FieldBuild<T[M]['result']> : void
