@@ -294,7 +294,9 @@ type Handler<T extends Schema, M extends keyof T> = <A>(
   ...args: [
     ...params: T[M]['params'] extends FieldDef
       ? [FieldBuild<T[M]['params']>]
-      : []
+      : [],
+    caller: A,
+    transport: Transport<A>
   ]
 ) => OptProm<
   T[M]['result'] extends FieldDef ? FieldBuild<T[M]['result']> : void
