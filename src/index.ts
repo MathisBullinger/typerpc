@@ -39,7 +39,9 @@ export default class Endpoint<
   private transports: Transport<any>[] = []
   private defaultTransport?: Transport<any>
   private connections = new Map<any, Connection<any>>()
-  private handlers: { [K in keyof Schema]?: Function } = {}
+  private handlers: {
+    [K in keyof Schema]?: (args: any, caller: any, transport: any) => any
+  } = {}
   private readonly logger: Opts<TIntro>['logger']
   private readonly strictKeyCheck: boolean
   private readonly validateParams: boolean
@@ -105,7 +107,7 @@ export default class Endpoint<
 
   public on: TSchema extends null ? never : Registration<Exclude<TSchema, null>>
   private _on: Registration<Exclude<TSchema, null>> = (method, handler) => {
-    this.handlers[method as any] = handler
+    this.handlers[method as any] = handler as any
   }
 
   private ingress =
@@ -130,6 +132,7 @@ export default class Endpoint<
         return await this.handleMsg(
           parsed,
           caller,
+          transport,
           respondError(transport),
           respondResult(transport)
         )
@@ -143,6 +146,7 @@ export default class Endpoint<
           this.handleMsg(
             msg,
             caller,
+            transport,
             respondError({ out }),
             respondResult({ out })
           )
@@ -155,6 +159,7 @@ export default class Endpoint<
   private async handleMsg(
     parsed: any,
     caller: any,
+    transport: any,
     respondError: (
       type: keyof typeof errors,
       id?: string | number | null
@@ -170,12 +175,20 @@ export default class Endpoint<
     } else {
       const invalid = this.validateRequest(parsed)
       if (invalid) return await respondError(invalid, parsed.id)
-      await this.invokeProcedure(parsed, respondError, respondResult)
+      await this.invokeProcedure(
+        parsed,
+        caller,
+        transport,
+        respondError,
+        respondResult
+      )
     }
   }
 
   private async invokeProcedure(
     request: Request<Exclude<TSchema, null>, any>,
+    caller: any,
+    transport: any,
     respondError: (
       type: keyof typeof errors,
       id?: string | number | null
@@ -184,7 +197,11 @@ export default class Endpoint<
   ) {
     let result: any = undefined
     try {
-      result = this.handlers[request.method]!((request as any).params)
+      result = this.handlers[request.method]!(
+        (request as any).params,
+        caller,
+        transport
+      )
       if (isPromise(result)) result = await result
     } catch (e) {
       this.logger?.error('failed to invoke procedure', request, e)
